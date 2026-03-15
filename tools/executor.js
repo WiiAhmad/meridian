@@ -122,7 +122,9 @@ const toolMap = {
     // Apply to live config immediately
     for (const [key, val] of Object.entries(applied)) {
       const [section, field] = CONFIG_MAP[key];
+      const before = config[section][field];
       config[section][field] = val;
+      log("config", `update_config: config.${section}.${field} ${before} → ${val} (verify: ${config[section][field]})`);
     }
 
     // Persist to user-config.json
