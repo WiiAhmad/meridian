@@ -19,6 +19,7 @@ import { config, reloadScreeningThresholds } from "../config.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { execSync, spawn } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const USER_CONFIG_PATH = path.join(__dirname, "../user-config.json");
@@ -56,6 +57,27 @@ const toolMap = {
     const ok = setPositionInstruction(position_address, instruction || null);
     if (!ok) return { error: `Position ${position_address} not found in state` };
     return { saved: true, position: position_address, instruction: instruction || null };
+  },
+  self_update: async () => {
+    try {
+      const result = execSync("git pull", { cwd: process.cwd(), encoding: "utf8" }).trim();
+      if (result.includes("Already up to date")) {
+        return { success: true, updated: false, message: "Already up to date — no restart needed." };
+      }
+      // Delay restart so this tool response (and Telegram message) gets sent first
+      setTimeout(() => {
+        const child = spawn(process.execPath, process.argv.slice(1), {
+          detached: true,
+          stdio: "inherit",
+          cwd: process.cwd(),
+        });
+        child.unref();
+        process.exit(0);
+      }, 3000);
+      return { success: true, updated: true, message: `Updated! Restarting in 3s...\n${result}` };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   },
   add_lesson: ({ rule, tags }) => { addLesson(rule, tags || []); return { saved: true, rule }; },
   clear_lessons: ({ mode, keyword }) => {

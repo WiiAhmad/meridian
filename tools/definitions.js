@@ -387,6 +387,17 @@ Always provide a reason. This is logged as a lesson and visible in future cycles
     }
   },
 
+  {
+    type: "function",
+    function: {
+      name: "self_update",
+      description: `Pull the latest code from git and restart the agent.
+Use when the user says "update", "pull latest", "update yourself", etc.
+Responds with what changed before restarting in 3 seconds.`,
+      parameters: { type: "object", properties: {} }
+    }
+  },
+
   // ═══════════════════════════════════════════
   //  SMART WALLET TOOLS
   // ═══════════════════════════════════════════
