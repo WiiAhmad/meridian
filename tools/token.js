@@ -145,6 +145,40 @@ export async function getTokenHolders({ mint, limit = 20 }) {
 
   const totalBundlersPct = bundlers.reduce((s, b) => s + (Number(b.percentage) || 0), 0);
 
+  // ─── Smart Wallet / KOL Cross-reference ──────────────────────
+  const { listSmartWallets } = await import("../smart-wallets.js");
+  const { wallets: smartWallets } = listSmartWallets();
+  const smartWalletMap = new Map(smartWallets.map((w) => [w.address, w]));
+
+  // Find any smart wallets in the holder list
+  const matchedAddresses = mapped
+    .map((h) => smartWalletMap.get(h.address))
+    .filter(Boolean)
+    .map((w) => w.address);
+
+  // Fetch PnL for matched smart wallets (if any)
+  let smartWalletsHolding = [];
+  if (matchedAddresses.length > 0) {
+    const pnlRes = await fetch(
+      `${DATAPI_BASE}/pnl?addresses=${matchedAddresses.join(",")}&includeClosed=true`
+    ).catch(() => null);
+    const pnlData = pnlRes?.ok ? await pnlRes.json() : null;
+
+    smartWalletsHolding = matchedAddresses.map((addr) => {
+      const wallet = smartWalletMap.get(addr);
+      const holder = mapped.find((h) => h.address === addr);
+      const pnl = pnlData?.[addr] ?? pnlData?.find?.((p) => p.address === addr) ?? null;
+      return {
+        name: wallet.name,
+        category: wallet.category,
+        address: addr,
+        amount: holder?.amount,
+        pct: holder?.pct,
+        pnl: pnl ?? "unavailable",
+      };
+    });
+  }
+
   return {
     mint,
     total_fetched: holders.length,
@@ -152,6 +186,7 @@ export async function getTokenHolders({ mint, limit = 20 }) {
     top_10_real_holders_pct: top10Pct.toFixed(2),
     bundlers_pct_in_top_100: totalBundlersPct.toFixed(4),
     bundlers,
+    smart_wallets_holding: smartWalletsHolding,
     holders: mapped,
   };
 }
